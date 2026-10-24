@@ -17,6 +17,7 @@ using AFMediaBar.Classes.Services.Localization;
 using AFMediaBar.Classes.Settings;
 using AFMediaBar.ViewModels.Pages;
 using AFMediaBar.Views.Pages;
+using AFMediaBar.Views.Windows;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Wpf.Ui.Appearance;
 using Wpf.Ui.Controls;
@@ -50,6 +51,32 @@ public sealed class SettingsVisualRuntimeTests
     [TestMethod]
     public Task PreferredSourceRefreshKeepsOfflineSelectionWithoutRewritingIdentity() =>
         RunIsolatedAsync(nameof(PreferredSourceRefreshKeepsOfflineSelectionWithoutRewritingIdentity), _ => VerifyPreferredSourceIdentity());
+
+    [TestMethod]
+    public Task NotificationWindowReusesTransparentSurfaceAndRejectsOldArtworkUpdates() =>
+        RunIsolatedAsync(nameof(NotificationWindowReusesTransparentSurfaceAndRejectsOldArtworkUpdates), app =>
+        {
+            var monitor = new DisplayMonitorInfo("test", "test", true,
+                new Rect(-32000, -32000, 1920, 1080), new Rect(-32000, -32000, 1920, 1040), 96, 96);
+            var settings = TrackChangeNotificationSettings.Default;
+            var first = MediaSnapshot.Disconnected with { IsConnected = true, IsPlaying = true, SourceId = "test", Title = "First", Artist = "Artist" };
+            var second = first with { Title = "Second" };
+            var window = new TrackChangeNotificationWindow(new NoMonitors());
+            try
+            {
+                window.ShowNotification(new(first, settings, monitor));
+                app.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                Assert.IsTrue(window.AllowsTransparency);
+                Assert.IsFalse(window.ShowInTaskbar);
+                Assert.IsFalse(window.ShowActivated);
+                Assert.AreEqual(WindowStyle.None, window.WindowStyle);
+                Assert.IsTrue(window.IsVisible);
+                window.ShowNotification(new(second, settings, monitor));
+                window.UpdateSnapshot(first);
+                Assert.AreEqual("Second", ((System.Windows.Controls.TextBlock)window.FindName("TitleText")).Text);
+            }
+            finally { window.Close(); }
+        });
 
     private static async Task RunIsolatedAsync(string testName, Action<Application> verify)
     {
@@ -171,7 +198,9 @@ public sealed class SettingsVisualRuntimeTests
             {
                 MediaSelection = new(MediaSelectionMode.PreferredApplication, "offline-player")
             };
-            var model = new ExtraFeaturesViewModel(registry, media, new NoMonitors(), localization, quickLaunch);
+            var monitors = new NoMonitors();
+            using var notifications = new TrackChangeNotificationCoordinator(media, monitors);
+            var model = new ExtraFeaturesViewModel(registry, media, monitors, localization, quickLaunch, notifications);
             Assert.IsTrue(model.PreferredSourceOptions.Any(option => option.SourceId == "offline-player"));
             Assert.AreEqual("offline-player", model.PreferredSourceId);
             typeof(MediaSessionService).GetField("_lastDiscoveredSources", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!

@@ -1,5 +1,6 @@
 using AFMediaBar.Classes.Models;
 using AFMediaBar.Classes.Settings;
+using AFMediaBar.Resources;
 
 namespace AFMediaBar.Classes.Services;
 
@@ -35,6 +36,27 @@ public sealed class TrackChangeNotificationCoordinator : IDisposable
         _displayMonitorService = displayMonitorService;
         _mediaSessionService.SnapshotChanged += OnSnapshotChanged;
         SettingsManager.TrackChangeNotificationSettingsChanged += OnNotificationSettingsChanged;
+    }
+
+    /// <summary>使用现有通知事件显示本地示例，不改变媒体切歌判定状态。</summary>
+    public void ShowPreview()
+    {
+        if (_disposed)
+            return;
+        var settings = SettingsManager.Current.TrackChangeNotification.Normalize();
+        _displayMonitorService.Refresh();
+        var monitor = _displayMonitorService.ResolveNotificationMonitor(settings.TargetMode, settings.FixedMonitorDeviceId);
+        if (monitor is null)
+            return;
+        var sample = MediaSnapshot.Disconnected with
+        {
+            IsConnected = true,
+            IsPlaying = true,
+            Title = Translations.Get("Media.Notification.Preview.SampleTitle"),
+            Artist = Translations.Get("Media.Notification.Preview.SampleArtist"),
+            SourceName = "AF Media Bar"
+        };
+        NotificationRequested?.Invoke(this, new TrackChangeNotificationRequest(sample, settings, monitor));
     }
 
     private void OnSnapshotChanged(object? sender, MediaSnapshot snapshot)

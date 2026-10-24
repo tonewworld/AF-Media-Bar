@@ -3207,4 +3207,19 @@
   <data name="Placement.Floating.EdgeCollapse.Title" xml:space="preserve"><value>邊緣自動收合</value></data>
   <data name="Placement.Floating.EdgeCollapse.Description" xml:space="preserve"><value>預設開啟。拖到工作區邊緣後，移開滑鼠收合，靠近時展開；支援四邊。</value></data>
   <data name="Placement.Floating.EdgeCollapse.Reveal" xml:space="preserve"><value>展開桌面媒體列</value></data>
+  <data name="Media.Notification.Position.Custom" xml:space="preserve"><value>自訂位置</value></data>
+  <data name="Media.Notification.OffsetX.Title" xml:space="preserve"><value>水平位移 X</value></data>
+  <data name="Media.Notification.OffsetY.Title" xml:space="preserve"><value>垂直位移 Y</value></data>
+  <data name="Media.Notification.TitleFontSize.Title" xml:space="preserve"><value>標題字級</value></data>
+  <data name="Media.Notification.TitleColor.Title" xml:space="preserve"><value>標題顏色</value></data>
+  <data name="Media.Notification.ArtistFontSize.Title" xml:space="preserve"><value>歌手字級</value></data>
+  <data name="Media.Notification.ArtistColor.Title" xml:space="preserve"><value>歌手顏色</value></data>
+  <data name="Media.Notification.CoverSize.Title" xml:space="preserve"><value>封面尺寸</value></data>
+  <data name="Media.Notification.Animation.Title" xml:space="preserve"><value>啟用動畫</value></data>
+  <data name="Media.Notification.Color.Invalid" xml:space="preserve"><value>請輸入有效的 HEX 顏色（#RRGGBB）</value></data>
+  <data name="Media.Notification.Preview.Title" xml:space="preserve"><value>即時預覽</value></data>
+  <data name="Media.Notification.Preview.Test" xml:space="preserve"><value>顯示測試通知</value></data>
+  <data name="Media.Notification.Preview.SampleTitle" xml:space="preserve"><value>範例歌曲標題</value></data>
+  <data name="Media.Notification.Preview.SampleArtist" xml:space="preserve"><value>範例歌手</value></data>
+  <data name="Media.Notification.Reset.Title" xml:space="preserve"><value>還原通知預設設定</value></data>
 </root>

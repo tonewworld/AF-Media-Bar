@@ -3207,4 +3207,19 @@ Double-click to launch · Scroll to select · Click for list</value>
   <data name="Placement.Floating.EdgeCollapse.Title" xml:space="preserve"><value>Auto-hide at desktop edges</value></data>
   <data name="Placement.Floating.EdgeCollapse.Description" xml:space="preserve"><value>On by default. Drag to any work-area edge; move away to hide and approach to reveal.</value></data>
   <data name="Placement.Floating.EdgeCollapse.Reveal" xml:space="preserve"><value>Reveal desktop media bar</value></data>
+  <data name="Media.Notification.Position.Custom" xml:space="preserve"><value>Custom position</value></data>
+  <data name="Media.Notification.OffsetX.Title" xml:space="preserve"><value>Horizontal offset X</value></data>
+  <data name="Media.Notification.OffsetY.Title" xml:space="preserve"><value>Vertical offset Y</value></data>
+  <data name="Media.Notification.TitleFontSize.Title" xml:space="preserve"><value>Title font size</value></data>
+  <data name="Media.Notification.TitleColor.Title" xml:space="preserve"><value>Title color</value></data>
+  <data name="Media.Notification.ArtistFontSize.Title" xml:space="preserve"><value>Artist font size</value></data>
+  <data name="Media.Notification.ArtistColor.Title" xml:space="preserve"><value>Artist color</value></data>
+  <data name="Media.Notification.CoverSize.Title" xml:space="preserve"><value>Cover size</value></data>
+  <data name="Media.Notification.Animation.Title" xml:space="preserve"><value>Enable animation</value></data>
+  <data name="Media.Notification.Color.Invalid" xml:space="preserve"><value>Enter a valid HEX color (#RRGGBB)</value></data>
+  <data name="Media.Notification.Preview.Title" xml:space="preserve"><value>Live preview</value></data>
+  <data name="Media.Notification.Preview.Test" xml:space="preserve"><value>Show test notification</value></data>
+  <data name="Media.Notification.Preview.SampleTitle" xml:space="preserve"><value>Sample track title</value></data>
+  <data name="Media.Notification.Preview.SampleArtist" xml:space="preserve"><value>Sample artist</value></data>
+  <data name="Media.Notification.Reset.Title" xml:space="preserve"><value>Restore notification defaults</value></data>
 </root>

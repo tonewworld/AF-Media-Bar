@@ -3245,4 +3245,19 @@ Nhấp đúp để chạy · Cuộn để chọn · Nhấp để mở danh sách
   <data name="Placement.Floating.EdgeCollapse.Title" xml:space="preserve"><value>Tự thu gọn ở cạnh màn hình</value></data>
   <data name="Placement.Floating.EdgeCollapse.Description" xml:space="preserve"><value>Mặc định bật. Kéo đến một trong bốn cạnh vùng làm việc; di chuột ra để thu gọn và đến gần để mở.</value></data>
   <data name="Placement.Floating.EdgeCollapse.Reveal" xml:space="preserve"><value>Mở thanh phương tiện trên màn hình</value></data>
+  <data name="Media.Notification.Position.Custom" xml:space="preserve"><value>Vị trí tùy chỉnh</value></data>
+  <data name="Media.Notification.OffsetX.Title" xml:space="preserve"><value>Độ lệch ngang X</value></data>
+  <data name="Media.Notification.OffsetY.Title" xml:space="preserve"><value>Độ lệch dọc Y</value></data>
+  <data name="Media.Notification.TitleFontSize.Title" xml:space="preserve"><value>Cỡ chữ tiêu đề</value></data>
+  <data name="Media.Notification.TitleColor.Title" xml:space="preserve"><value>Màu tiêu đề</value></data>
+  <data name="Media.Notification.ArtistFontSize.Title" xml:space="preserve"><value>Cỡ chữ nghệ sĩ</value></data>
+  <data name="Media.Notification.ArtistColor.Title" xml:space="preserve"><value>Màu nghệ sĩ</value></data>
+  <data name="Media.Notification.CoverSize.Title" xml:space="preserve"><value>Kích thước ảnh bìa</value></data>
+  <data name="Media.Notification.Animation.Title" xml:space="preserve"><value>Bật hiệu ứng</value></data>
+  <data name="Media.Notification.Color.Invalid" xml:space="preserve"><value>Nhập màu HEX hợp lệ (#RRGGBB)</value></data>
+  <data name="Media.Notification.Preview.Title" xml:space="preserve"><value>Xem trước trực tiếp</value></data>
+  <data name="Media.Notification.Preview.Test" xml:space="preserve"><value>Hiện thông báo thử</value></data>
+  <data name="Media.Notification.Preview.SampleTitle" xml:space="preserve"><value>Tên bài hát mẫu</value></data>
+  <data name="Media.Notification.Preview.SampleArtist" xml:space="preserve"><value>Nghệ sĩ mẫu</value></data>
+  <data name="Media.Notification.Reset.Title" xml:space="preserve"><value>Khôi phục mặc định thông báo</value></data>
 </root>

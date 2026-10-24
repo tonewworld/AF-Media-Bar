@@ -17,6 +17,7 @@ public partial class ExtraFeaturesViewModel : ObservableObject
     private readonly IDisplayMonitorService _displayMonitorService;
     private readonly LocalizationService _localization;
     private readonly QuickLaunchService _quickLaunch;
+    private readonly TrackChangeNotificationCoordinator _notificationCoordinator;
 
     // 设置写入会同步通知订阅者，而写设置的那一方可能在后台线程上（更新检查的网络等待之后就是如此）：
     // 本页的 Sources 绑定到界面，跨线程改它们会让 WPF 的 CollectionView 抛异常，
@@ -83,9 +84,11 @@ public partial class ExtraFeaturesViewModel : ObservableObject
         MediaSourceRegistry sources,
         MediaSessionService mediaSessions,
         IDisplayMonitorService displayMonitorService,
-        LocalizationService localization, QuickLaunchService quickLaunch)
+        LocalizationService localization, QuickLaunchService quickLaunch,
+        TrackChangeNotificationCoordinator notificationCoordinator)
     {
         _quickLaunch = quickLaunch;
+        _notificationCoordinator = notificationCoordinator;
         _sources = sources;
         _mediaSessions = mediaSessions;
         _displayMonitorService = displayMonitorService;
@@ -132,7 +135,7 @@ public partial class ExtraFeaturesViewModel : ObservableObject
 
     public bool TrackChangeNotificationEnabled { get => Notification.Enabled; set => UpdateNotification(Notification with { Enabled = value }); }
     public bool ShowTrackChangeNotificationWhenFullscreen { get => Notification.ShowWhenFullscreen; set => UpdateNotification(Notification with { ShowWhenFullscreen = value }); }
-    public int TrackChangeNotificationDurationSeconds { get => Notification.DurationMilliseconds / 1000; set => UpdateNotification(Notification with { DurationMilliseconds = value * 1000 }); }
+    public double TrackChangeNotificationDurationSeconds { get => Notification.DurationMilliseconds / 1000d; set => UpdateNotification(Notification with { DurationMilliseconds = (int)Math.Round(value * 1000) }); }
 
     /// <summary>Notification duration bounds in the display unit, derived from the persistence contract.</summary>
     public double MinimumTrackChangeNotificationDurationSeconds => TrackChangeNotificationSettings.MinimumDurationMilliseconds / 1000d;
@@ -201,6 +204,7 @@ public partial class ExtraFeaturesViewModel : ObservableObject
         OnPropertyChanged(nameof(TrackChangeNotificationTargetMode));
         OnPropertyChanged(nameof(TrackChangeNotificationFixedMonitorDeviceId));
         OnPropertyChanged(nameof(CanSelectTrackChangeNotificationMonitor));
+        NotifyNotificationVisualProperties();
     }
 
     private void OnDiscoveredSourcesChanged(IReadOnlyList<MediaSourceDescriptor> sources) => DispatcherHelper.Run(_dispatcher, RefreshSources);

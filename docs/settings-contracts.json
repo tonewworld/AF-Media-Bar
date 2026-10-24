@@ -229,11 +229,19 @@
     "taskbarTargetMonitorDeviceIds": "v1.2.1",
     "trackChangeNotification": {
       "$release": "v1.2.0",
+      "animationEnabled": "unreleased",
+      "artistColor": "unreleased",
+      "artistFontSize": "unreleased",
+      "coverSize": "unreleased",
       "durationMilliseconds": "v1.2.0",
       "enabled": "v1.2.0",
       "fixedMonitorDeviceId": "v1.2.0",
+      "offsetX": "unreleased",
+      "offsetY": "unreleased",
       "position": "v1.2.0",
       "showWhenFullscreen": "v1.2.0",
+      "titleColor": "unreleased",
+      "titleFontSize": "unreleased",
       "targetMode": "v1.2.0"
     },
     "translucentTbCompatibilityPromptShown": "v1.4.0",
@@ -674,7 +682,8 @@
         "TopCenter": {"value": 2, "release": "v1.2.0"},
         "TopRight": {"value": 3, "release": "v1.2.0"},
         "BottomCenter": {"value": 4, "release": "v1.2.0"},
-        "BottomRight": {"value": 5, "release": "v1.2.0"}
+        "BottomRight": {"value": 5, "release": "v1.2.0"},
+        "Custom": {"value": 6, "release": "unreleased"}
       }
     },
     "TrayClickAction": {

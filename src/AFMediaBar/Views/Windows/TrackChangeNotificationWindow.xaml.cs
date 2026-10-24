@@ -1,9 +1,8 @@
-using System.Diagnostics;
-using System.Windows.Interop;
-using System.Windows.Input;
+// 曲目通知窗口只拥有透明 HWND、动画与隐藏计时器；媒体选择和显示器枚举沿用已有服务。
+using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Interop;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using AFMediaBar.Classes.Interop;
@@ -12,39 +11,37 @@ using AFMediaBar.Classes.Services;
 using AFMediaBar.Classes.Services.Layout;
 using AFMediaBar.Classes.Settings;
 using AFMediaBar.Classes.Utils;
-using Wpf.Ui.Controls;
 
 namespace AFMediaBar.Views.Windows;
 
-/// <summary>可复用、非激活的曲目切换通知窗口。 / Reusable, non-activating track-change notification window.</summary>
-public partial class TrackChangeNotificationWindow : FluentWindow
+/// <summary>复用同一个非激活透明窗口，显示当前曲目的封面、标题和歌手。</summary>
+public partial class TrackChangeNotificationWindow : Window
 {
-    private const int ContentSizeAttemptCount = 3;
-    private const double ContentSizeTolerance = 0.5;
+    private enum PresentationState { Hidden, Entering, Visible, Exiting }
+
+    private readonly IDisplayMonitorService _monitorService;
     private readonly DispatcherTimer _hideTimer;
     private DisplayMonitorInfo? _currentMonitor;
-    private TrackChangeNotificationPosition _currentPosition;
-    private bool _hasCompletedInitialLayout;
+    private TrackChangeNotificationSettings _currentSettings;
+    private string? _currentIdentity;
+    private PresentationState _state;
     private int _presentationVersion;
 
-    /// <summary>创建通知窗口并接入统一窗口外观。 / Creates the notification window and attaches unified window appearance.</summary>
-    public TrackChangeNotificationWindow(WindowAppearanceService appearanceService)
+    /// <summary>创建通知窗口；关闭时释放计时器和设置、显示器订阅。</summary>
+    public TrackChangeNotificationWindow(IDisplayMonitorService monitorService)
     {
+        _monitorService = monitorService;
         WindowHelper.SetNoActivate(this);
         InitializeComponent();
-        ApplyMotionEffects();
         Left = -10000;
         Top = -10000;
-        appearanceService.AttachNonActivatingTransient(this);
-        _hideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _hideTimer = new DispatcherTimer();
         _hideTimer.Tick += HideTimer_Tick;
+        SettingsManager.TrackChangeNotificationSettingsChanged += OnNotificationSettingsChanged;
+        _monitorService.MonitorsChanged += OnMonitorsChanged;
     }
 
-    /// <summary>
-    /// 更新并显示通知；首次显示会等待布局稳定，重复调用会复用 HWND 并重置停留时间。
-    /// Updates and shows the notification; the first presentation waits for stable layout,
-    /// while subsequent calls reuse its HWND and reset dwell time.
-    /// </summary>
+    /// <summary>替换内容并重新计时；旧入场、退出和延迟布局回调由代际拦截。</summary>
     public void ShowNotification(TrackChangeNotificationRequest request)
     {
         if (!Dispatcher.CheckAccess())
@@ -53,86 +50,40 @@ public partial class TrackChangeNotificationWindow : FluentWindow
             return;
         }
 
-        var presentationVersion = ++_presentationVersion;
+        var version = ++_presentationVersion;
+        var resumeMotion = _state is PresentationState.Entering or PresentationState.Exiting;
+        var startX = resumeMotion ? EntryTransform.X : 16d;
+        var startOpacity = resumeMotion ? AnimatedRoot.Opacity : 0d;
         _hideTimer.Stop();
         StopAnimations();
-        ApplyMotionEffects();
+        _currentSettings = request.Settings.Normalize();
         _currentMonitor = request.Monitor;
-        _currentPosition = request.Settings.Position;
+        _currentIdentity = TrackChangeNotificationPolicy.CreateIdentity(request.Snapshot);
+        ApplySettings(_currentSettings);
         ApplySnapshot(request.Snapshot);
 
         if (!IsVisible)
         {
-            Opacity = 0;
+            AnimatedRoot.Opacity = 0;
             Show();
-        }
-
-        if (!_hasCompletedInitialLayout)
-        {
-            // FluentWindow 在第一次 Show 后才完成模板和窗口框架测量；首帧保持透明且位于屏外，
-            // 等 SizeToContent 稳定后再定位。FluentWindow completes template/chrome measurement after
-            // the first Show call; keep that frame transparent and off-screen until SizeToContent settles.
-            Dispatcher.BeginInvoke(
-                () => CompletePresentation(request, presentationVersion),
-                DispatcherPriority.ContextIdle);
+            Dispatcher.BeginInvoke(() => CompletePresentation(version, startX, startOpacity), DispatcherPriority.Loaded);
             return;
         }
 
-        CompletePresentation(request, presentationVersion);
+        CompletePresentation(version, startX, startOpacity);
     }
 
-    private void CompletePresentation(TrackChangeNotificationRequest request, int presentationVersion)
+    private void CompletePresentation(int version, double startX, double startOpacity)
     {
-        if (presentationVersion != _presentationVersion || !IsVisible)
+        if (version != _presentationVersion || !IsVisible || _currentMonitor is null)
             return;
 
-        EnsureContentSizedWindow();
-        PositionOnMonitor(request.Monitor, request.Settings.Position);
-        _hasCompletedInitialLayout = true;
-        Opacity = 1;
-        BeginEntryAnimation(request.Settings.Position);
-
-        _hideTimer.Interval = TimeSpan.FromMilliseconds(request.Settings.DurationMilliseconds);
-        _hideTimer.Start();
+        UpdateLayout();
+        PositionOnMonitor(_currentMonitor, _currentSettings);
+        StartEntry(version, startX, startOpacity);
     }
 
-    /// <summary>
-    /// 按“客户端尺寸等于内容期望尺寸”校验并修正窗口尺寸。
-    /// 首次 Show 时 WPF 仍按窗口当时的标题栏和边框补偿 <c>SizeToContent</c>：窗口在 96 DPI 下比内容宽出
-    /// 16 物理像素、高出 39 物理像素（<c>SM_CXSIZEFRAME</c> 与 <c>SM_CYCAPTION</c> 的合计），内容停在左上角，
-    /// 右侧与下方留下空带；复用同一 HWND 的后续呈现不再补偿标题栏，尺寸因此正常。
-    /// 这里在窗口框架稳定后重新施加一次 <c>SizeToContent</c>，让首次呈现与后续复用得到同一尺寸。
-    /// Verifies and corrects the window size against the content's desired size. On the first Show, WPF still compensates
-    /// <c>SizeToContent</c> for the caption and frame the window had at that moment: the window is 16 physical pixels wider
-    /// and 39 physical pixels taller than its content at 96 DPI (the combined <c>SM_CXSIZEFRAME</c> and <c>SM_CYCAPTION</c>
-    /// metrics), and the content stays anchored to the top-left with empty strips at the right and bottom. Later
-    /// presentations reuse the HWND without that compensation and size correctly. Re-applying <c>SizeToContent</c> once the
-    /// window frame has settled makes the first presentation match every later one.
-    /// </summary>
-    private void EnsureContentSizedWindow()
-    {
-        for (var attempt = 0; attempt < ContentSizeAttemptCount; attempt++)
-        {
-            UpdateLayout();
-            var desired = AnimatedRoot.DesiredSize;
-            var widthMatches = Math.Abs(ActualWidth - desired.Width) <= ContentSizeTolerance;
-            var heightMatches = Math.Abs(ActualHeight - desired.Height) <= ContentSizeTolerance;
-            if (desired.Width > 0 && desired.Height > 0 && widthMatches && heightMatches)
-            {
-                return;
-            }
-
-            var sizeToContent = SizeToContent;
-            SizeToContent = System.Windows.SizeToContent.Manual;
-            SizeToContent = sizeToContent;
-        }
-
-        Debug.WriteLine(
-            $"[TrackChangeNotification] Content size did not settle: window {ActualWidth}x{ActualHeight}, " +
-            $"content {AnimatedRoot.DesiredSize.Width}x{AnimatedRoot.DesiredSize.Height}");
-    }
-
-    /// <summary>补全当前可见通知的封面或文字，不重新显示窗口或重置计时。 / Enriches artwork or text for the visible notification without re-showing it or resetting its timer.</summary>
+    /// <summary>只补全当前曲目的封面或文本；旧曲目的迟到结果不能覆盖新曲目。</summary>
     public void UpdateSnapshot(MediaSnapshot snapshot)
     {
         if (!Dispatcher.CheckAccess())
@@ -141,35 +92,164 @@ public partial class TrackChangeNotificationWindow : FluentWindow
             return;
         }
 
-        if (!IsVisible || _currentMonitor is null)
+        if (_state == PresentationState.Hidden ||
+            !string.Equals(_currentIdentity, TrackChangeNotificationPolicy.CreateIdentity(snapshot), StringComparison.Ordinal))
             return;
 
         ApplySnapshot(snapshot);
-        if (!_hasCompletedInitialLayout)
-            return;
-
         UpdateLayout();
-        PositionOnMonitor(_currentMonitor, _currentPosition);
+        RefreshPlacement();
     }
 
     private void ApplySnapshot(MediaSnapshot snapshot)
     {
         TitleText.Text = snapshot.Title;
-        ArtistText.Text = string.IsNullOrWhiteSpace(snapshot.Artist)
-            ? snapshot.SourceName
-            : snapshot.Artist;
-        ArtworkImage.Source = snapshot.Artwork;
+        TitleText.ToolTip = snapshot.Title;
+        var artist = string.IsNullOrWhiteSpace(snapshot.Artist) ? snapshot.SourceName : snapshot.Artist;
+        ArtistText.Text = artist;
+        ArtistText.ToolTip = artist;
+        if (snapshot.Artwork is null)
+            ArtworkBorder.SetResourceReference(Border.BackgroundProperty, "ControlFillColorSecondaryBrush");
+        else
+            ArtworkBorder.Background = new ImageBrush(snapshot.Artwork) { Stretch = Stretch.Uniform };
         ArtworkPlaceholder.Visibility = snapshot.Artwork is null ? Visibility.Visible : Visibility.Collapsed;
-        // 与任务栏封面共用宽高比约束；极端宽高比使用留白，避免通知将视频封面裁成正方形。
-        // Match the taskbar artwork box; extreme aspects letterbox instead of cropping the notification image.
-        var bitmap = snapshot.Artwork as BitmapSource;
-        var box = ArtworkBoxPolicy.Resolve(ArtworkBorder.Height, bitmap?.PixelWidth ?? 0, bitmap?.PixelHeight ?? 0);
-        ArtworkBorder.Width = box.Width;
-        ArtworkColumn.Width = new GridLength(box.Width);
-        ArtworkImage.Stretch = Stretch.Uniform;
     }
 
-    /// <summary>立即隐藏通知并取消动画和计时。 / Immediately hides the notification and cancels animations and timing.</summary>
+    private void ApplySettings(TrackChangeNotificationSettings settings)
+    {
+        ArtworkBorder.Width = settings.CoverSize;
+        ArtworkBorder.Height = settings.CoverSize;
+        ArtworkColumn.Width = new GridLength(settings.CoverSize);
+        TitleText.FontSize = settings.TitleFontSize;
+        ArtistText.FontSize = settings.ArtistFontSize;
+        if (ColorHex.TryParse(settings.TitleColor, out var titleColor))
+            TitleText.Foreground = new SolidColorBrush(titleColor);
+        if (ColorHex.TryParse(settings.ArtistColor, out var artistColor))
+            ArtistText.Foreground = new SolidColorBrush(artistColor);
+    }
+
+    private void PositionOnMonitor(DisplayMonitorInfo monitor, TrackChangeNotificationSettings settings)
+    {
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero)
+            return;
+
+        var scaleX = (monitor.DpiX == 0 ? 96u : monitor.DpiX) / 96d;
+        var scaleY = (monitor.DpiY == 0 ? 96u : monitor.DpiY) / 96d;
+        var size = NotificationPlacementCalculator.ToPhysicalSize(
+            new Size(Math.Max(1, ActualWidth), Math.Max(1, ActualHeight)), monitor.DpiX, monitor.DpiY);
+        var point = NotificationPlacementCalculator.Calculate(
+            monitor.WorkArea, size, settings.Position, 24 * Math.Max(scaleX, scaleY),
+            settings.OffsetX * scaleX, settings.OffsetY * scaleY);
+        NativeMethods.SetWindowPos(handle, -1, (int)Math.Round(point.X), (int)Math.Round(point.Y), 0, 0,
+            NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
+    }
+
+    private void StartEntry(int version, double startX, double startOpacity)
+    {
+        _state = PresentationState.Entering;
+        var animated = _currentSettings.AnimationEnabled == true && MotionPolicy.ResolveCurrent().UseTransitions;
+        if (!animated)
+        {
+            EntryTransform.X = 0;
+            AnimatedRoot.Opacity = 1;
+            CompleteEntry(version);
+            return;
+        }
+
+        EntryTransform.X = startX;
+        AnimatedRoot.Opacity = startOpacity;
+        var duration = new Duration(TimeSpan.FromMilliseconds(300));
+        var ease = new PowerEase { Power = 3, EasingMode = EasingMode.EaseOut };
+        EntryTransform.BeginAnimation(TranslateTransform.XProperty,
+            new DoubleAnimation(0, duration) { EasingFunction = ease });
+        var fade = new DoubleAnimation(1, duration) { EasingFunction = ease };
+        fade.Completed += (_, _) => CompleteEntry(version);
+        AnimatedRoot.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private void CompleteEntry(int version)
+    {
+        if (version != _presentationVersion || !IsVisible)
+            return;
+        _state = PresentationState.Visible;
+        _hideTimer.Interval = TimeSpan.FromMilliseconds(_currentSettings.DurationMilliseconds);
+        _hideTimer.Start();
+    }
+
+    private void HideTimer_Tick(object? sender, EventArgs e)
+    {
+        _hideTimer.Stop();
+        var version = _presentationVersion;
+        if (_currentSettings.AnimationEnabled != true || !MotionPolicy.ResolveCurrent().UseTransitions)
+        {
+            HideImmediately();
+            return;
+        }
+
+        _state = PresentationState.Exiting;
+        var duration = new Duration(TimeSpan.FromMilliseconds(250));
+        EntryTransform.BeginAnimation(TranslateTransform.XProperty, new DoubleAnimation(16, duration));
+        var fade = new DoubleAnimation(0, duration);
+        fade.Completed += (_, _) =>
+        {
+            if (version == _presentationVersion)
+                HideImmediately();
+        };
+        AnimatedRoot.BeginAnimation(OpacityProperty, fade);
+    }
+
+    private void OnNotificationSettingsChanged(object? sender, EventArgs e)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(() => OnNotificationSettingsChanged(sender, e));
+            return;
+        }
+        if (_state == PresentationState.Hidden)
+            return;
+        var settings = SettingsManager.Current.TrackChangeNotification.Normalize();
+        if (!settings.Enabled)
+        {
+            HideImmediately();
+            return;
+        }
+        _currentSettings = settings;
+        ApplySettings(settings);
+        UpdateLayout();
+        RefreshPlacement();
+        if (_state == PresentationState.Visible)
+        {
+            _hideTimer.Stop();
+            _hideTimer.Interval = TimeSpan.FromMilliseconds(settings.DurationMilliseconds);
+            _hideTimer.Start();
+        }
+    }
+
+    private void OnMonitorsChanged(object? sender, EventArgs e)
+    {
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(RefreshPlacement);
+            return;
+        }
+        RefreshPlacement();
+    }
+
+    private void RefreshPlacement()
+    {
+        if (_state == PresentationState.Hidden)
+            return;
+        var monitor = _monitorService.ResolveNotificationMonitor(
+            _currentSettings.TargetMode, _currentSettings.FixedMonitorDeviceId);
+        if (monitor is null)
+            return;
+        _currentMonitor = monitor;
+        UpdateLayout();
+        PositionOnMonitor(monitor, _currentSettings);
+    }
+
+    /// <summary>取消所有过渡和计时并立即隐藏，可在退出时重复调用。</summary>
     public void HideImmediately()
     {
         if (!Dispatcher.CheckAccess())
@@ -177,131 +257,26 @@ public partial class TrackChangeNotificationWindow : FluentWindow
             Dispatcher.BeginInvoke(HideImmediately);
             return;
         }
-
-        _presentationVersion++;
+        ++_presentationVersion;
         _hideTimer.Stop();
         StopAnimations();
+        _state = PresentationState.Hidden;
         if (IsVisible)
             Hide();
     }
 
-    private void PositionOnMonitor(DisplayMonitorInfo monitor, TrackChangeNotificationPosition position)
-    {
-        var scaleX = Math.Max(1d / 96d, monitor.DpiX / 96d);
-        var scaleY = Math.Max(1d / 96d, monitor.DpiY / 96d);
-        var pixelSize = NotificationPlacementCalculator.ToPhysicalSize(
-            new Size(Math.Max(1, ActualWidth), Math.Max(1, ActualHeight)),
-            monitor.DpiX,
-            monitor.DpiY);
-        var point = NotificationPlacementCalculator.Calculate(
-            monitor.WorkArea,
-            pixelSize,
-            position,
-            16 * Math.Max(scaleX, scaleY));
-        var handle = new WindowInteropHelper(this).Handle;
-        if (handle == IntPtr.Zero)
-            return;
-
-        NativeMethods.SetWindowPos(
-            handle,
-            -1,
-            (int)Math.Round(point.X),
-            (int)Math.Round(point.Y),
-            0,
-            0,
-            NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOACTIVATE | NativeMethods.SWP_SHOWWINDOW);
-    }
-
-    private void BeginEntryAnimation(TrackChangeNotificationPosition position)
-    {
-        var motion = MotionPolicy.ResolveCurrent();
-        var startsAtTop = position is TrackChangeNotificationPosition.TopLeft or
-            TrackChangeNotificationPosition.TopCenter or TrackChangeNotificationPosition.TopRight;
-        EntryScaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-        EntryScaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-        EntryTransform.Y = startsAtTop ? -12 : 12;
-        EntryScaleTransform.ScaleX = motion.UseTransitions ? 0.98 : 1;
-        EntryScaleTransform.ScaleY = motion.UseTransitions ? 0.98 : 1;
-        AnimatedRoot.Opacity = motion.UseTransitions ? 0 : 1;
-        if (!motion.UseTransitions)
-        {
-            EntryTransform.Y = 0;
-            return;
-        }
-
-        var duration = motion.StandardDuration;
-        EntryTransform.BeginAnimation(
-            TranslateTransform.YProperty,
-            new DoubleAnimation(0, new Duration(duration))
-            {
-                EasingFunction = new PowerEase { Power = 3, EasingMode = EasingMode.EaseOut }
-            });
-        EntryScaleTransform.BeginAnimation(
-            ScaleTransform.ScaleXProperty,
-            new DoubleAnimation(1, new Duration(duration))
-            {
-                EasingFunction = new PowerEase { Power = 3, EasingMode = EasingMode.EaseOut }
-            });
-        EntryScaleTransform.BeginAnimation(
-            ScaleTransform.ScaleYProperty,
-            new DoubleAnimation(1, new Duration(duration))
-            {
-                EasingFunction = new PowerEase { Power = 3, EasingMode = EasingMode.EaseOut }
-            });
-        AnimatedRoot.BeginAnimation(
-            OpacityProperty,
-            new DoubleAnimation(1, new Duration(duration)));
-    }
-
-    private void HideTimer_Tick(object? sender, EventArgs e)
-    {
-        _hideTimer.Stop();
-        var version = _presentationVersion;
-        var motion = MotionPolicy.ResolveCurrent();
-        if (!motion.UseTransitions)
-        {
-            Hide();
-            return;
-        }
-
-        var animation = new DoubleAnimation(0, new Duration(motion.ExitDuration));
-        animation.Completed += (_, _) =>
-        {
-            if (version == _presentationVersion && IsVisible)
-                Hide();
-        };
-        AnimatedRoot.BeginAnimation(OpacityProperty, animation);
-    }
-
-    private void Window_MouseEnter(object sender, MouseEventArgs e) => HideImmediately();
-
     private void StopAnimations()
     {
         AnimatedRoot.BeginAnimation(OpacityProperty, null);
-        EntryScaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, null);
-        EntryScaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, null);
-        EntryTransform.BeginAnimation(TranslateTransform.YProperty, null);
-        AnimatedRoot.Opacity = 1;
-        EntryScaleTransform.ScaleX = 1;
-        EntryScaleTransform.ScaleY = 1;
-        EntryTransform.Y = 0;
+        EntryTransform.BeginAnimation(TranslateTransform.XProperty, null);
     }
 
-    private void ApplyMotionEffects()
-    {
-        if (MotionPolicy.ResolveCurrent().UseDecorativeEffects)
-            AnimatedRoot.SetResourceReference(Border.EffectProperty, "AfNotificationShadowEffect");
-        else
-            AnimatedRoot.Effect = null;
-    }
-
-    /// <summary>停止通知计时并释放窗口。 / Stops notification timing and releases the window.</summary>
     protected override void OnClosed(EventArgs e)
     {
-        _presentationVersion++;
-        _hideTimer.Stop();
+        HideImmediately();
         _hideTimer.Tick -= HideTimer_Tick;
-        StopAnimations();
+        SettingsManager.TrackChangeNotificationSettingsChanged -= OnNotificationSettingsChanged;
+        _monitorService.MonitorsChanged -= OnMonitorsChanged;
         base.OnClosed(e);
     }
 }

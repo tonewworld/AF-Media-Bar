@@ -167,7 +167,18 @@
                                         <ComboBoxItem Content="{DynamicResource Loc.Media.Notification.Position.BottomLeft}" Tag="{x:Static settings:TrackChangeNotificationPosition.BottomLeft}" />
                                         <ComboBoxItem Content="{DynamicResource Loc.Media.Notification.Position.BottomCenter}" Tag="{x:Static settings:TrackChangeNotificationPosition.BottomCenter}" />
                                         <ComboBoxItem Content="{DynamicResource Loc.Media.Notification.Position.BottomRight}" Tag="{x:Static settings:TrackChangeNotificationPosition.BottomRight}" />
+                                        <ComboBoxItem Content="{DynamicResource Loc.Media.Notification.Position.Custom}" Tag="{x:Static settings:TrackChangeNotificationPosition.Custom}" />
                                     </ComboBox>
+                                </components:SettingsRow>
+                                <components:SettingsRow Icon="{ui:SymbolIcon ArrowMove24}" IsNested="True"
+                                                        Title="{DynamicResource Loc.Media.Notification.OffsetX.Title}">
+                                    <components:SettingsNumericEditor Value="{Binding ViewModel.NotificationOffsetX, Mode=TwoWay}"
+                                        Minimum="-10000" Maximum="10000" Step="1" Unit="{DynamicResource Loc.Settings.Numeric.Dip}" />
+                                </components:SettingsRow>
+                                <components:SettingsRow Icon="{ui:SymbolIcon ArrowMove24}" IsNested="True"
+                                                        Title="{DynamicResource Loc.Media.Notification.OffsetY.Title}">
+                                    <components:SettingsNumericEditor Value="{Binding ViewModel.NotificationOffsetY, Mode=TwoWay}"
+                                        Minimum="-10000" Maximum="10000" Step="1" Unit="{DynamicResource Loc.Settings.Numeric.Dip}" />
                                 </components:SettingsRow>
                                 <components:SettingsRow
                                     Icon="{ui:SymbolIcon Timer24}"
@@ -177,8 +188,65 @@
                                     Value="{Binding ViewModel.TrackChangeNotificationDurationSeconds, Mode=TwoWay}"
                                     Minimum="{Binding ViewModel.MinimumTrackChangeNotificationDurationSeconds}"
                                     Maximum="{Binding ViewModel.MaximumTrackChangeNotificationDurationSeconds}"
-                                    Step="1"
+                                    Step="0.5"
                                     Unit="{DynamicResource Loc.Settings.Numeric.Seconds}" />
+                                </components:SettingsRow>
+                                <components:SettingsRow Icon="{ui:SymbolIcon TextFontSize24}" IsNested="True"
+                                                        Title="{DynamicResource Loc.Media.Notification.TitleFontSize.Title}">
+                                    <components:SettingsNumericEditor Value="{Binding ViewModel.NotificationTitleFontSize, Mode=TwoWay}"
+                                        Minimum="12" Maximum="48" Step="1" Unit="{DynamicResource Loc.Settings.Numeric.Dip}" />
+                                </components:SettingsRow>
+                                <components:SettingsRow Icon="{ui:SymbolIcon Color24}" IsNested="True"
+                                                        Title="{DynamicResource Loc.Media.Notification.TitleColor.Title}">
+                                    <StackPanel>
+                                        <WrapPanel>
+                                            <Button Background="#202020" ToolTip="#202020" Style="{StaticResource AfSettingsColorSwatchStyle}"
+                                                Command="{Binding ViewModel.SetTitleColorCommand}" CommandParameter="#202020" />
+                                            <Button Background="#FFFFFF" ToolTip="#FFFFFF" Style="{StaticResource AfSettingsColorSwatchStyle}"
+                                                Command="{Binding ViewModel.SetTitleColorCommand}" CommandParameter="#FFFFFF" />
+                                            <Button Background="#0078D4" ToolTip="#0078D4" Style="{StaticResource AfSettingsColorSwatchStyle}"
+                                                Command="{Binding ViewModel.SetTitleColorCommand}" CommandParameter="#0078D4" />
+                                            <Button Background="#F7C948" ToolTip="#F7C948" Style="{StaticResource AfSettingsColorSwatchStyle}"
+                                                Command="{Binding ViewModel.SetTitleColorCommand}" CommandParameter="#F7C948" />
+                                        </WrapPanel>
+                                        <TextBox Width="110" HorizontalAlignment="Left" Margin="0,8,0,0" MaxLength="9"
+                                            Text="{Binding ViewModel.TitleColorHex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="{DynamicResource Loc.Media.Notification.Color.Invalid}" Margin="0,4,0,0"
+                                            Visibility="{Binding ViewModel.HasTitleColorError, Converter={StaticResource AfBooleanToVisibilityConverter}}" />
+                                    </StackPanel>
+                                </components:SettingsRow>
+                                <components:SettingsRow Icon="{ui:SymbolIcon TextFontSize24}" IsNested="True"
+                                                        Title="{DynamicResource Loc.Media.Notification.ArtistFontSize.Title}">
+                                    <components:SettingsNumericEditor Value="{Binding ViewModel.NotificationArtistFontSize, Mode=TwoWay}"
+                                        Minimum="10" Maximum="36" Step="1" Unit="{DynamicResource Loc.Settings.Numeric.Dip}" />
+                                </components:SettingsRow>
+                                <components:SettingsRow Icon="{ui:SymbolIcon Color24}" IsNested="True"
+                                                        Title="{DynamicResource Loc.Media.Notification.ArtistColor.Title}">
+                                    <StackPanel>
+                                        <WrapPanel>
+                                            <Button Background="#666666" ToolTip="#666666" Style="{StaticResource AfSettingsColorSwatchStyle}"
+                                                Command="{Binding ViewModel.SetArtistColorCommand}" CommandParameter="#666666" />
+                                            <Button Background="#202020" ToolTip="#202020" Style="{StaticResource AfSettingsColorSwatchStyle}"
+                                                Command="{Binding ViewModel.SetArtistColorCommand}" CommandParameter="#202020" />
+                                            <Button Background="#FFFFFF" ToolTip="#FFFFFF" Style="{StaticResource AfSettingsColorSwatchStyle}"
+                                                Command="{Binding ViewModel.SetArtistColorCommand}" CommandParameter="#FFFFFF" />
+                                            <Button Background="#0078D4" ToolTip="#0078D4" Style="{StaticResource AfSettingsColorSwatchStyle}"
+                                                Command="{Binding ViewModel.SetArtistColorCommand}" CommandParameter="#0078D4" />
+                                        </WrapPanel>
+                                        <TextBox Width="110" HorizontalAlignment="Left" Margin="0,8,0,0" MaxLength="9"
+                                            Text="{Binding ViewModel.ArtistColorHex, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="{DynamicResource Loc.Media.Notification.Color.Invalid}" Margin="0,4,0,0"
+                                            Visibility="{Binding ViewModel.HasArtistColorError, Converter={StaticResource AfBooleanToVisibilityConverter}}" />
+                                    </StackPanel>
+                                </components:SettingsRow>
+                                <components:SettingsRow Icon="{ui:SymbolIcon Image24}" IsNested="True"
+                                                        Title="{DynamicResource Loc.Media.Notification.CoverSize.Title}">
+                                    <components:SettingsNumericEditor Value="{Binding ViewModel.NotificationCoverSize, Mode=TwoWay}"
+                                        Minimum="40" Maximum="160" Step="1" Unit="{DynamicResource Loc.Settings.Numeric.Dip}" />
+                                </components:SettingsRow>
+                                <components:SettingsRow Icon="{ui:SymbolIcon Play24}" IsNested="True"
+                                                        Title="{DynamicResource Loc.Media.Notification.Animation.Title}">
+                                    <ui:ToggleSwitch IsChecked="{Binding ViewModel.NotificationAnimationEnabled, Mode=TwoWay}" />
                                 </components:SettingsRow>
                                 <components:SettingsRow
                                     Description="{DynamicResource Loc.Media.Notification.TargetMode.Description}"
@@ -205,6 +273,37 @@
                                         SelectedValue="{Binding ViewModel.TrackChangeNotificationFixedMonitorDeviceId, Mode=TwoWay}"
                                         SelectedValuePath="DeviceId" />
                                 </components:SettingsRow>
+                                <Border Style="{StaticResource AfSettingsInfoSurfaceStyle}" Margin="0,12,0,0">
+                                    <StackPanel>
+                                        <TextBlock Text="{DynamicResource Loc.Media.Notification.Preview.Title}"
+                                            Style="{StaticResource AfSettingsRowTitleStyle}" Margin="0,0,0,8" />
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="{Binding ViewModel.NotificationCoverSize}"
+                                                Height="{Binding ViewModel.NotificationCoverSize}" CornerRadius="4"
+                                                Background="{DynamicResource ControlFillColorSecondaryBrush}">
+                                                <ui:SymbolIcon Symbol="MusicNote220" FontSize="28" />
+                                            </Border>
+                                            <StackPanel Margin="14,0,0,0" VerticalAlignment="Center" MaxWidth="280">
+                                                <TextBlock Text="{Binding ViewModel.NotificationPreviewTitle}"
+                                                    FontSize="{Binding ViewModel.NotificationTitleFontSize}"
+                                                    Foreground="{Binding ViewModel.TitlePreviewBrush}"
+                                                    FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding ViewModel.NotificationPreviewArtist}"
+                                                    FontSize="{Binding ViewModel.NotificationArtistFontSize}"
+                                                    Foreground="{Binding ViewModel.ArtistPreviewBrush}"
+                                                    TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <WrapPanel Margin="0,12,0,0">
+                                            <ui:Button Content="{DynamicResource Loc.Media.Notification.Preview.Test}"
+                                                Command="{Binding ViewModel.ShowTestNotificationCommand}"
+                                                Style="{StaticResource AfSettingsButtonStyle}" Margin="0,0,8,0" />
+                                            <ui:Button Content="{DynamicResource Loc.Media.Notification.Reset.Title}"
+                                                Command="{Binding ViewModel.ResetNotificationDefaultsCommand}"
+                                                Style="{StaticResource AfSettingsButtonStyle}" />
+                                        </WrapPanel>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </ui:CardExpander>
                     </StackPanel>

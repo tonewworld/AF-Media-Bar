@@ -49,4 +49,35 @@ public static class NotificationPlacementCalculator
 
         return new Point(Math.Clamp(x, minX, maxX), Math.Clamp(y, minY, maxY));
     }
+
+    /// <summary>在预设锚点上应用物理像素偏移，或按工作区原点放置自定义位置，并夹入可见区域。</summary>
+    public static Point Calculate(
+        Rect workArea,
+        Size windowSize,
+        TrackChangeNotificationPosition position,
+        double margin,
+        double offsetX,
+        double offsetY)
+    {
+        if (workArea.IsEmpty || workArea.Width <= 0 || workArea.Height <= 0)
+            return new Point(0, 0);
+
+        var width = double.IsFinite(windowSize.Width) ? Math.Max(0, windowSize.Width) : 0;
+        var height = double.IsFinite(windowSize.Height) ? Math.Max(0, windowSize.Height) : 0;
+        var basePoint = Calculate(workArea, windowSize, position, margin);
+        var safeX = double.IsFinite(offsetX) ? offsetX : 0;
+        var safeY = double.IsFinite(offsetY) ? offsetY : 0;
+        var rightAnchored = position is TrackChangeNotificationPosition.TopRight or TrackChangeNotificationPosition.BottomRight;
+        var bottomAnchored = position is TrackChangeNotificationPosition.BottomLeft or
+            TrackChangeNotificationPosition.BottomCenter or TrackChangeNotificationPosition.BottomRight;
+        var x = position == TrackChangeNotificationPosition.Custom
+            ? workArea.Left + safeX
+            : basePoint.X + (rightAnchored ? -safeX : safeX);
+        var y = position == TrackChangeNotificationPosition.Custom
+            ? workArea.Top + safeY
+            : basePoint.Y + (bottomAnchored ? -safeY : safeY);
+        return new Point(
+            Math.Clamp(x, workArea.Left, Math.Max(workArea.Left, workArea.Right - width)),
+            Math.Clamp(y, workArea.Top, Math.Max(workArea.Top, workArea.Bottom - height)));
+    }
 }
