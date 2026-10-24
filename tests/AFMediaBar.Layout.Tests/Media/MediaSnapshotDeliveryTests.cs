@@ -87,7 +87,10 @@ public sealed class MediaSnapshotDeliveryTests
             Task? completion = null;
             try
             {
-                SettingsManager.Current = new AppSettings();
+                SettingsManager.Current = new AppSettings
+                {
+                    SmtcSourceFilter = SmtcSourceFilterSettings.Default with { AllowedSourceIds = ["player"] }
+                };
                 var current = MediaSnapshot.Disconnected with
                 {
                     IsConnected = true,

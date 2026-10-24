@@ -1694,7 +1694,7 @@
     <value>Configure spectrum and performance components in the always-on view.</value>
   </data>
   <data name="Media.SourceFilter.Description" xml:space="preserve">
-    <value>Accept only allowed media sources; disabling the filter keeps the list.</value>
+    <value>On by default: accept only checked sources. Turning it off accepts every source but keeps your selections.</value>
   </data>
   <data name="Media.SourceFilter.Title" xml:space="preserve">
     <value>Source allow list</value>
@@ -1709,7 +1709,7 @@
     <value>Allow</value>
   </data>
   <data name="Media.SourceList.Description" xml:space="preserve">
-    <value>NetEase Music is always listed; other players appear when detected.</value>
+    <value>NetEase Music is allowed by default. Other players appear when detected and need your permission to connect.</value>
   </data>
   <data name="Media.SourceList.Title" xml:space="preserve">
     <value>Available sources</value>
