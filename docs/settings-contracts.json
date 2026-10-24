@@ -158,6 +158,7 @@
     "smtcSourceFilter": {
       "$release": "v1.2.0",
       "allowedSourceIds": "v1.2.0",
+      "defaultRestrictionApplied": "unreleased",
       "enabled": "v1.2.0"
     },
     "spectrumComponent": {
@@ -890,8 +891,8 @@
     {
       "id": "source-filter",
       "prefixes": ["settings.smtcSourceFilter"],
-      "text": "enabled=false 不过滤；true且空列表不允许任何来源。列表Trim、忽略大小写去重并排序，使用时归一化媒体别名。",
-      "relatedPaths": ["settings.smtcSourceFilter.enabled", "settings.smtcSourceFilter.allowedSourceIds"]
+      "text": "默认启用并只允许 cloudmusic。旧配置缺少 defaultRestrictionApplied 时首次启用过滤并保留已有允许项；旧配置关闭过滤且列表为空时补 cloudmusic。升级后用户主动设 enabled=false 仍不作过滤；true 且空列表不允许任何来源。列表 Trim、忽略大小写去重并排序，使用时归一化媒体别名。",
+      "relatedPaths": ["settings.smtcSourceFilter.enabled", "settings.smtcSourceFilter.allowedSourceIds", "settings.smtcSourceFilter.defaultRestrictionApplied"]
     },
     {
       "id": "quick-launch",

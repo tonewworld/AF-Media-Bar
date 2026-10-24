@@ -23,15 +23,33 @@ public sealed record MediaSelectionSettings(MediaSelectionMode Mode = MediaSelec
 /// <summary>SMTC 应用来源允许列表。 / Allow-list for SMTC application sources.</summary>
 public readonly record struct SmtcSourceFilterSettings(bool Enabled, IReadOnlyList<string>? AllowedSourceIds)
 {
-    public static SmtcSourceFilterSettings Default { get; } = new(false, []);
+    private const string DefaultAllowedSourceId = "cloudmusic";
 
-    public SmtcSourceFilterSettings Normalize() => this with
+    // 区分旧配置中缺少此字段与用户升级后主动关闭过滤；不改变已发布字段的 JSON 名称。
+    public bool? DefaultRestrictionApplied { get; init; }
+
+    public static SmtcSourceFilterSettings Default { get; } = new(true, [DefaultAllowedSourceId])
     {
-        AllowedSourceIds = (AllowedSourceIds ?? [])
+        DefaultRestrictionApplied = true
+    };
+
+    public SmtcSourceFilterSettings Normalize()
+    {
+        var allowed = (AllowedSourceIds ?? [])
             .Where(value => !string.IsNullOrWhiteSpace(value))
             .Select(value => value.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .OrderBy(value => value, StringComparer.OrdinalIgnoreCase)
-            .ToArray()
-    };
+            .ToArray();
+        if (DefaultRestrictionApplied == true)
+            return this with { AllowedSourceIds = allowed };
+
+        // 旧版默认关闭总开关，使未勾选的浏览器仍可接管；升级时保留已有勾选，仅为空且关闭时补网易云。
+        return this with
+        {
+            Enabled = true,
+            AllowedSourceIds = !Enabled && allowed.Length == 0 ? [DefaultAllowedSourceId] : allowed,
+            DefaultRestrictionApplied = true
+        };
+    }
 }
